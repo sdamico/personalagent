@@ -13,12 +13,14 @@ A personal agent system with a Mac Mini background service (Electron) and iOS re
 - **Remote PTY**: Multiple concurrent terminal sessions accessible via WebSocket
 - **Service Management**: Configure and manage background services (Claude Code, etc.)
 - **Tailscale Integration**: Secure remote access through your Tailscale network
-- **Token Auth**: Secure authentication between iOS app and agent
+- **TLS Encryption**: Self-signed certificates with certificate pinning
+- **QR Code Pairing**: Scan a QR code to securely pair iOS app with Mac agent
+- **Voice Input**: Wispr Flow integration for hands-free terminal control
 
 ## Architecture
 
 ```
-iOS App ──(WebSocket)──► Tailscale ──► Personal Agent (Mac Mini)
+iOS App ──(TLS/WSS)──► Tailscale ──► Personal Agent (Mac Mini)
                                             │
                                             ├── PTY Sessions (tabs)
                                             │   ├── Claude Code #1
@@ -40,25 +42,43 @@ iOS App ──(WebSocket)──► Tailscale ──► Personal Agent (Mac Mini)
    npm start
    ```
 
-3. For development with hot reload:
+3. Build distributable DMG:
    ```bash
-   npm run dev
+   npm run dist
    ```
 
-4. Build distributable:
-   ```bash
-   npm run dist:mac
-   ```
-
-## iOS App Connection
+## Connecting the iOS App
 
 1. Ensure both devices are on the same Tailscale network
-2. Get the Mac Mini's Tailscale IP (e.g., `100.x.x.x`)
-3. Copy the auth token from the agent (tray menu → Copy Auth Token)
-4. Connect from iOS app to `ws://100.x.x.x:9876`
-5. Authenticate with the token
+2. Open the Personal Agent desktop app
+3. Go to the **Connection** tab to see the QR code
+4. Open the iOS app and tap **Connect** → **Scan QR Code**
+5. The QR code contains: Tailscale IP, port, auth token, and TLS certificate fingerprint
+
+The QR code pairing automatically configures TLS certificate pinning for secure connections.
+
+## Security
+
+### TLS Encryption
+- All connections use TLS (wss://) with self-signed certificates
+- Certificate fingerprint is embedded in QR code for pinning
+- iOS app validates server certificate matches the paired fingerprint
+
+### Authentication
+- Auth tokens stored in macOS Keychain (not plaintext files)
+- 64-character cryptographically random tokens
+- Constant-time comparison prevents timing attacks
+- 10-second authentication timeout
+
+### Network Restrictions
+- By default, only accepts connections from:
+  - Localhost (127.0.0.1, ::1)
+  - Tailscale CGNAT range (100.64.0.0/10)
+- Toggle in Settings → Security → "Restrict to Tailscale"
 
 ## WebSocket Protocol
+
+All messages use JSON over secure WebSocket (wss://).
 
 ### Authentication
 ```json
@@ -81,8 +101,7 @@ iOS App ──(WebSocket)──► Tailscale ──► Personal Agent (Mac Mini)
   "payload": {
     "name": "Claude Code",
     "cols": 80,
-    "rows": 24,
-    "shell": "/bin/zsh"
+    "rows": 24
   }
 }
 ```
@@ -114,34 +133,33 @@ iOS App ──(WebSocket)──► Tailscale ──► Personal Agent (Mac Mini)
 
 ## Voice Input (Wispr Flow)
 
-The iOS app natively supports [Wispr Flow API](https://wispr.com) for voice dictation. Transcribed text is sent directly to the active PTY session:
+The iOS app supports [Wispr Flow](https://wisprflow.ai) for voice dictation. Configure your API key in Settings.
 
+Voice-transcribed text is sent to the active terminal with a source tag:
 ```json
 {
   "type": "pty",
   "action": "write",
   "payload": {
     "sessionId": "session-uuid",
-    "data": "transcribed voice command here",
+    "data": "transcribed voice command",
     "source": "wispr-flow"
   }
 }
 ```
 
-This enables hands-free interaction with Claude Code and other terminal sessions.
-
 ## Configuration
 
-Config is stored in:
-- macOS: `~/Library/Application Support/personal-agent/config.json`
+Config stored at: `~/Library/Application Support/personal-agent/config.json`
 
-Example config:
+**Note**: Auth token is stored separately in macOS Keychain, not in the config file.
+
 ```json
 {
   "connection": {
     "mode": "tailscale",
     "directPort": 9876,
-    "authToken": "auto-generated"
+    "restrictToTailscale": true
   },
   "services": [
     {
@@ -158,9 +176,25 @@ Example config:
 }
 ```
 
-## Security
+## File Structure
 
-- Auth tokens are generated using cryptographically secure random bytes
-- Token comparison uses constant-time comparison to prevent timing attacks
-- All connections require authentication within 10 seconds
-- Tailscale provides end-to-end encrypted networking
+```
+├── src/
+│   ├── main/
+│   │   ├── index.ts          # Main Electron process
+│   │   ├── preload.ts        # IPC bridge
+│   │   ├── ConfigStore.ts    # Config + Keychain storage
+│   │   └── CertManager.ts    # TLS certificate management
+│   ├── renderer/
+│   │   └── index.html        # Desktop UI
+│   ├── services/
+│   │   ├── PTYManager.ts     # Terminal session management
+│   │   ├── RemoteServer.ts   # WebSocket server (TLS)
+│   │   ├── ServiceManager.ts # Background service management
+│   │   └── TailscaleService.ts
+│   └── shared/
+│       └── types.ts          # Shared TypeScript types
+├── ios-app/                  # iOS SwiftUI app
+├── assets/                   # App icons
+└── build/                    # Build configuration
+```
