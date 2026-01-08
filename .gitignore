@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+release/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+*.dmg
+
+# Logs
+*.log
+npm-debug.log*
+
+# Config (contains auth token)
+config.json

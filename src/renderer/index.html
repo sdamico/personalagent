@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+  <title>Personal Agent</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #1a1a1a;
+      color: #e0e0e0;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .container {
+      display: flex;
+      height: 100vh;
+    }
+
+    .sidebar {
+      width: 180px;
+      background: #252525;
+      border-right: 1px solid #333;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid #333;
+    }
+
+    .sidebar-header h1 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 8px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #888;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    .nav-item:hover {
+      background: #333;
+      color: #fff;
+    }
+
+    .nav-item.active {
+      background: #0066cc;
+      color: #fff;
+    }
+
+    .nav-icon {
+      margin-right: 10px;
+      font-size: 16px;
+    }
+
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .header {
+      padding: 16px 24px;
+      border-bottom: 1px solid #333;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h2 {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .content {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    .card {
+      background: #252525;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+
+    .status-running {
+      background: #1a4d1a;
+      color: #4ade80;
+    }
+
+    .status-stopped {
+      background: #4d1a1a;
+      color: #f87171;
+    }
+
+    .status-connected {
+      background: #1a3d4d;
+      color: #38bdf8;
+    }
+
+    .status-warning {
+      background: #4d3d1a;
+      color: #fbbf24;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .info-item {
+      background: #1a1a1a;
+      padding: 12px;
+      border-radius: 6px;
+    }
+
+    .info-label {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 4px;
+    }
+
+    .info-value {
+      font-size: 14px;
+      font-family: 'SF Mono', Monaco, monospace;
+      word-break: break-all;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #0066cc;
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: #0052a3;
+    }
+
+    .btn-secondary {
+      background: #333;
+      color: #fff;
+    }
+
+    .btn-secondary:hover {
+      background: #444;
+    }
+
+    .btn-danger {
+      background: #cc3333;
+      color: #fff;
+    }
+
+    .btn-danger:hover {
+      background: #a32929;
+    }
+
+    .btn-small {
+      padding: 4px 10px;
+      font-size: 11px;
+    }
+
+    .list-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      background: #1a1a1a;
+      border-radius: 6px;
+    }
+
+    .list-item-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .list-item-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 32px;
+      color: #666;
+    }
+
+    .token-display {
+      background: #1a1a1a;
+      padding: 12px;
+      border-radius: 6px;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 11px;
+      word-break: break-all;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .path-value {
+      font-size: 11px;
+      color: #888;
+      background: #1a1a1a;
+      padding: 8px;
+      border-radius: 4px;
+      margin-top: 4px;
+      word-break: break-all;
+      cursor: pointer;
+    }
+
+    .path-value:hover {
+      background: #222;
+    }
+
+    .qr-container {
+      display: flex;
+      align-items: flex-start;
+      gap: 24px;
+      padding: 16px 0;
+    }
+
+    .qr-code {
+      background: #fff;
+      padding: 12px;
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+
+    .qr-code img {
+      width: 160px;
+      height: 160px;
+      display: block;
+    }
+
+    .qr-info {
+      flex: 1;
+    }
+
+    .qr-info p {
+      color: #888;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    .section-divider {
+      border: none;
+      border-top: 1px solid #333;
+      margin: 16px 0;
+    }
+
+    .tab-buttons {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .tab-btn {
+      padding: 8px 16px;
+      background: #333;
+      border: none;
+      border-radius: 6px;
+      color: #888;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .tab-btn.active {
+      background: #0066cc;
+      color: #fff;
+    }
+
+    .tab-btn:hover:not(.active) {
+      background: #444;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h1>Personal Agent</h1>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-item active" data-page="connection">
+          <span class="nav-icon">⬡</span>
+          Connection
+        </div>
+        <div class="nav-item" data-page="activity">
+          <span class="nav-icon">▤</span>
+          Activity
+        </div>
+        <div class="nav-item" data-page="settings">
+          <span class="nav-icon">⚙</span>
+          Settings
+        </div>
+      </nav>
+    </div>
+
+    <div class="main-content">
+      <!-- Connection Page (Home) -->
+      <div id="page-connection" class="page">
+        <div class="header">
+          <h2>Connection</h2>
+          <button class="btn btn-secondary" onclick="refreshAll()">Refresh</button>
+        </div>
+        <div class="content">
+          <!-- Status Cards -->
+          <div class="info-grid" style="margin-bottom: 16px;">
+            <div class="card" style="margin-bottom: 0;">
+              <div class="card-header">
+                <span class="card-title">Server</span>
+                <span class="status-badge status-running" id="server-status">Running</span>
+              </div>
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-label">Port</div>
+                  <div class="info-value" id="server-port">9876</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">TLS</div>
+                  <div class="info-value" id="server-tls">Enabled</div>
+                </div>
+              </div>
+            </div>
+            <div class="card" style="margin-bottom: 0;">
+              <div class="card-header">
+                <span class="card-title">Tailscale</span>
+                <span class="status-badge" id="tailscale-badge">Checking...</span>
+              </div>
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="info-label">IP Address</div>
+                  <div class="info-value" id="tailscale-ip">-</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">Hostname</div>
+                  <div class="info-value" id="tailscale-hostname">-</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- QR Pairing Card -->
+          <div class="card" id="pairing-card">
+            <div class="card-header">
+              <span class="card-title">Pair with iPhone</span>
+            </div>
+            <div class="qr-container">
+              <div class="qr-code">
+                <img id="qr-code-img" src="" alt="QR Code" />
+              </div>
+              <div class="qr-info">
+                <p>Open the Personal Agent iOS app and scan this QR code to connect.</p>
+                <div class="info-item" style="margin-bottom: 12px;">
+                  <div class="info-label">Auth Token</div>
+                  <div class="token-display" id="auth-token">Loading...</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">TLS Fingerprint</div>
+                  <div class="token-display" id="tls-fingerprint" style="font-size: 9px;">Loading...</div>
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: 12px;">
+                  <button class="btn btn-secondary btn-small" onclick="copyAuthToken()">Copy Token</button>
+                  <button class="btn btn-secondary btn-small" onclick="copyFingerprint()">Copy Fingerprint</button>
+                  <button class="btn btn-danger btn-small" onclick="regenerateToken()">New Token</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tailscale Error Card (hidden by default) -->
+          <div class="card hidden" id="tailscale-error-card">
+            <div class="card-header">
+              <span class="card-title">Tailscale Required</span>
+            </div>
+            <div id="tailscale-error-content"></div>
+          </div>
+
+          <!-- Connected Clients Card -->
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Connected Clients</span>
+              <span class="status-badge status-connected" id="client-count">0</span>
+            </div>
+            <div id="client-list" class="list-container">
+              <div class="empty-state">No clients connected</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity Page -->
+      <div id="page-activity" class="page hidden">
+        <div class="header">
+          <h2>Activity</h2>
+          <button class="btn btn-primary" onclick="createNewSession()">New Terminal</button>
+        </div>
+        <div class="content">
+          <!-- Sub-tabs for Sessions/Services -->
+          <div class="tab-buttons">
+            <button class="tab-btn active" onclick="showActivityTab('sessions')">Sessions</button>
+            <button class="tab-btn" onclick="showActivityTab('services')">Services</button>
+          </div>
+
+          <!-- Sessions List -->
+          <div id="activity-sessions">
+            <div id="sessions-list" class="list-container">
+              <div class="empty-state">No active sessions</div>
+            </div>
+          </div>
+
+          <!-- Services List -->
+          <div id="activity-services" class="hidden">
+            <div id="services-list" class="list-container">
+              <div class="empty-state">No services configured</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings Page -->
+      <div id="page-settings" class="page hidden">
+        <div class="header">
+          <h2>Settings</h2>
+        </div>
+        <div class="content">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Startup</span>
+            </div>
+            <div style="margin-top: 12px;">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="auto-launch" />
+                <span style="font-size: 13px;">Launch at login</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-top: 8px;">
+                <input type="checkbox" id="start-minimized" />
+                <span style="font-size: 13px;">Start minimized to tray</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Server</span>
+            </div>
+            <div style="margin-top: 12px;">
+              <label style="font-size: 13px; color: #888;">Port</label>
+              <input type="number" id="server-port-setting" value="9876"
+                style="display: block; width: 100%; margin-top: 4px; padding: 8px;
+                background: #1a1a1a; border: 1px solid #333; border-radius: 4px;
+                color: #fff; font-size: 13px;" />
+            </div>
+            <div style="margin-top: 16px;">
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                <input type="checkbox" id="restrict-to-tailscale" checked />
+                <span style="font-size: 13px;">Restrict to Tailscale + localhost only</span>
+              </label>
+              <p style="color: #666; font-size: 11px; margin-top: 4px; margin-left: 24px;">
+                Only allow connections from Tailscale and localhost.
+              </p>
+            </div>
+            <button class="btn btn-primary" style="margin-top: 12px;" onclick="saveSettings()">
+              Save Settings
+            </button>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Paths</span>
+            </div>
+            <div style="margin-top: 12px;">
+              <div>
+                <div class="info-label">Config File</div>
+                <div class="path-value" id="path-config" onclick="copyPath('config')">-</div>
+              </div>
+              <div style="margin-top: 12px;">
+                <div class="info-label">TLS Certificates</div>
+                <div class="path-value" id="path-certs" onclick="copyPath('certs')">-</div>
+              </div>
+              <div style="margin-top: 12px;">
+                <div class="info-label">Data Directory</div>
+                <div class="path-value" id="path-data" onclick="copyPath('data')">-</div>
+              </div>
+              <button class="btn btn-secondary" style="margin-top: 12px;" onclick="openDataFolder()">
+                Open in Finder
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Security</span>
+            </div>
+            <div style="margin-top: 12px;">
+              <p style="color: #888; font-size: 13px; margin-bottom: 12px;">
+                Regenerate the TLS certificate. All clients will need to re-pair.
+              </p>
+              <button class="btn btn-danger" onclick="regenerateCert()">
+                Regenerate TLS Certificate
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">About</span>
+            </div>
+            <div class="info-grid" style="margin-top: 12px;">
+              <div class="info-item">
+                <div class="info-label">Version</div>
+                <div class="info-value">1.0.0</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Electron</div>
+                <div class="info-value" id="electron-version">-</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pairing Modal -->
+  <div id="pairing-modal" class="modal hidden">
+    <div class="modal-backdrop" onclick="closePairingModal()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Connect iPhone</h3>
+        <button class="modal-close" onclick="closePairingModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="modal-status"></div>
+        <div id="modal-qr" style="text-align: center; padding: 20px 0; display: none;">
+          <div style="display: inline-block; background: #fff; padding: 16px; border-radius: 8px;">
+            <img id="modal-qr-img" src="" alt="QR Code" style="width: 200px; height: 200px;" />
+          </div>
+          <p style="color: #888; font-size: 13px; margin-top: 16px;">
+            Scan this QR code with the Personal Agent iOS app
+          </p>
+          <div style="margin-top: 12px; font-family: monospace; font-size: 12px; color: #888;">
+            <span id="modal-ip"></span>:<span id="modal-port"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal.hidden {
+      display: none;
+    }
+    .modal-backdrop {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+    }
+    .modal-content {
+      position: relative;
+      background: #252525;
+      border-radius: 12px;
+      width: 400px;
+      max-width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid #333;
+    }
+    .modal-header h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+    .modal-close:hover {
+      color: #fff;
+    }
+    .modal-body {
+      padding: 20px;
+    }
+  </style>
+
+  <script>
+    // Navigation
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+        document.getElementById('page-' + item.dataset.page).classList.remove('hidden');
+      });
+    });
+
+    // Activity sub-tabs
+    function showActivityTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById('activity-sessions').classList.toggle('hidden', tab !== 'sessions');
+      document.getElementById('activity-services').classList.toggle('hidden', tab !== 'services');
+    }
+
+    // Initialize
+    async function init() {
+      await loadConfig();
+      await loadConnectionInfo();
+      await loadSessions();
+      await loadServices();
+      await loadClients();
+      await loadPaths();
+    }
+
+    async function refreshAll() {
+      await loadConnectionInfo();
+      await loadClients();
+    }
+
+    async function loadConfig() {
+      const config = await window.api.getConfig();
+      document.getElementById('server-port').textContent = config.connection.directPort || 9876;
+      document.getElementById('server-port-setting').value = config.connection.directPort || 9876;
+      document.getElementById('auto-launch').checked = config.autoLaunch;
+      document.getElementById('start-minimized').checked = config.startMinimized;
+      document.getElementById('restrict-to-tailscale').checked = config.connection.restrictToTailscale !== false;
+    }
+
+    async function loadConnectionInfo() {
+      try {
+        const { tailscaleStatus, pairingInfo, usingTLS } = await window.api.getPairingInfo();
+
+        // Update TLS status
+        document.getElementById('server-tls').textContent = usingTLS ? 'Enabled' : 'Disabled';
+
+        // Update Tailscale status
+        const badge = document.getElementById('tailscale-badge');
+        const pairingCard = document.getElementById('pairing-card');
+        const errorCard = document.getElementById('tailscale-error-card');
+        const errorContent = document.getElementById('tailscale-error-content');
+
+        if (!tailscaleStatus.installed) {
+          badge.textContent = 'Not Installed';
+          badge.className = 'status-badge status-stopped';
+          document.getElementById('tailscale-ip').textContent = '-';
+          document.getElementById('tailscale-hostname').textContent = '-';
+          pairingCard.classList.add('hidden');
+          errorCard.classList.remove('hidden');
+          errorContent.innerHTML = `
+            <p style="color: #f87171; font-size: 13px; margin-bottom: 12px;">
+              Tailscale is not installed on this Mac.
+            </p>
+            <p style="color: #888; font-size: 13px; margin-bottom: 12px;">
+              Tailscale creates a secure network between your devices.
+            </p>
+            <button class="btn btn-primary" onclick="openTailscaleInstall()">
+              Download Tailscale
+            </button>
+          `;
+        } else if (!tailscaleStatus.running || !tailscaleStatus.loggedIn) {
+          badge.textContent = tailscaleStatus.running ? 'Not Logged In' : 'Not Running';
+          badge.className = 'status-badge status-warning';
+          document.getElementById('tailscale-ip').textContent = '-';
+          document.getElementById('tailscale-hostname').textContent = '-';
+          pairingCard.classList.add('hidden');
+          errorCard.classList.remove('hidden');
+          errorContent.innerHTML = `
+            <p style="color: #fbbf24; font-size: 13px; margin-bottom: 12px;">
+              ${tailscaleStatus.running ? 'Please log in to Tailscale.' : 'Tailscale is not running.'}
+            </p>
+            <p style="color: #888; font-size: 13px;">
+              Open the Tailscale app and ${tailscaleStatus.running ? 'sign in' : 'connect'}.
+            </p>
+          `;
+        } else {
+          badge.textContent = 'Connected';
+          badge.className = 'status-badge status-running';
+          document.getElementById('tailscale-ip').textContent = tailscaleStatus.ip || '-';
+          document.getElementById('tailscale-hostname').textContent = tailscaleStatus.hostname || '-';
+          pairingCard.classList.remove('hidden');
+          errorCard.classList.add('hidden');
+
+          // Load QR code and credentials
+          document.getElementById('auth-token').textContent = pairingInfo.token;
+          document.getElementById('tls-fingerprint').textContent = pairingInfo.certFingerprint || 'Not available';
+
+          const qrResult = await window.api.generatePairingQR();
+          if (qrResult.qrDataUrl) {
+            document.getElementById('qr-code-img').src = qrResult.qrDataUrl;
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load connection info:', err);
+      }
+    }
+
+    async function loadSessions() {
+      const sessions = await window.api.getSessions();
+      const list = document.getElementById('sessions-list');
+
+      if (sessions.length === 0) {
+        list.innerHTML = '<div class="empty-state">No active sessions</div>';
+        return;
+      }
+
+      list.innerHTML = sessions.map(s => `
+        <div class="list-item">
+          <div class="list-item-info">
+            <span class="status-badge status-running">Active</span>
+            <span>${s.name}</span>
+            <span style="color: #666; font-size: 12px;">${s.cols}x${s.rows}</span>
+          </div>
+          <div class="list-item-actions">
+            <button class="btn btn-danger btn-small" onclick="closeSession('${s.id}')">Close</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function loadServices() {
+      const services = await window.api.getServices();
+      const list = document.getElementById('services-list');
+
+      if (services.length === 0) {
+        list.innerHTML = '<div class="empty-state">No services configured<br><small style="color:#555">Edit config.json to add services</small></div>';
+        return;
+      }
+
+      list.innerHTML = services.map(s => `
+        <div class="list-item">
+          <div class="list-item-info">
+            <span class="status-badge ${s.status === 'running' ? 'status-running' : 'status-stopped'}">
+              ${s.status}
+            </span>
+            <span>${s.name}</span>
+          </div>
+          <div class="list-item-actions">
+            ${s.status === 'running'
+              ? `<button class="btn btn-secondary btn-small" onclick="stopService('${s.id}')">Stop</button>`
+              : `<button class="btn btn-primary btn-small" onclick="startService('${s.id}')">Start</button>`
+            }
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function loadClients() {
+      const clients = await window.api.getConnectedClients();
+      document.getElementById('client-count').textContent = clients.length;
+
+      const list = document.getElementById('client-list');
+      if (clients.length === 0) {
+        list.innerHTML = '<div class="empty-state">No clients connected</div>';
+      } else {
+        list.innerHTML = clients.map(c => `
+          <div class="list-item">
+            <div class="list-item-info">
+              <span class="status-badge status-connected">Online</span>
+              <span>${c.deviceName}</span>
+            </div>
+            <span style="color: #666; font-size: 12px;">
+              Connected ${new Date(c.authenticatedAt).toLocaleTimeString()}
+            </span>
+          </div>
+        `).join('');
+      }
+    }
+
+    async function loadPaths() {
+      try {
+        const paths = await window.api.getPaths();
+        document.getElementById('path-config').textContent = paths.config;
+        document.getElementById('path-certs').textContent = paths.certs;
+        document.getElementById('path-data').textContent = paths.data;
+        document.getElementById('electron-version').textContent = paths.electronVersion;
+      } catch (err) {
+        console.error('Failed to load paths:', err);
+      }
+    }
+
+    // Actions
+    async function copyAuthToken() {
+      const token = await window.api.getAuthToken();
+      navigator.clipboard.writeText(token);
+    }
+
+    async function copyFingerprint() {
+      const text = document.getElementById('tls-fingerprint').textContent;
+      navigator.clipboard.writeText(text);
+    }
+
+    function copyPath(type) {
+      const el = document.getElementById('path-' + type);
+      navigator.clipboard.writeText(el.textContent);
+    }
+
+    async function regenerateToken() {
+      if (confirm('Regenerating the token will disconnect all clients. Continue?')) {
+        await window.api.regenerateAuthToken();
+        await loadConnectionInfo();
+      }
+    }
+
+    async function regenerateCert() {
+      if (confirm('Regenerating the TLS certificate will require all clients to re-pair. Continue?')) {
+        await window.api.regenerateCert();
+        await loadConnectionInfo();
+      }
+    }
+
+    async function createNewSession() {
+      await window.api.createSession();
+      await loadSessions();
+    }
+
+    async function closeSession(id) {
+      await window.api.closeSession(id);
+      await loadSessions();
+    }
+
+    async function startService(id) {
+      await window.api.startService(id);
+      await loadServices();
+    }
+
+    async function stopService(id) {
+      await window.api.stopService(id);
+      await loadServices();
+    }
+
+    async function saveSettings() {
+      const config = await window.api.getConfig();
+      config.autoLaunch = document.getElementById('auto-launch').checked;
+      config.startMinimized = document.getElementById('start-minimized').checked;
+      config.connection.directPort = parseInt(document.getElementById('server-port-setting').value);
+      config.connection.restrictToTailscale = document.getElementById('restrict-to-tailscale').checked;
+      await window.api.setConfig(config);
+      alert('Settings saved. Restart the app for changes to take effect.');
+    }
+
+    async function openDataFolder() {
+      await window.api.openDataFolder();
+    }
+
+    async function openTailscaleInstall() {
+      const url = await window.api.getTailscaleInstallUrl();
+      window.api.openExternal(url);
+    }
+
+    // Modal functions
+    async function showPairingModal() {
+      const modal = document.getElementById('pairing-modal');
+      const statusDiv = document.getElementById('modal-status');
+      const qrDiv = document.getElementById('modal-qr');
+      const qrImg = document.getElementById('modal-qr-img');
+
+      modal.classList.remove('hidden');
+      statusDiv.innerHTML = '<p style="color: #888;">Generating QR code...</p>';
+      qrDiv.style.display = 'none';
+
+      try {
+        const qrResult = await window.api.generatePairingQR();
+        console.log('QR Result:', qrResult);
+
+        if (qrResult.error) {
+          statusDiv.innerHTML = `
+            <p style="color: #fbbf24; margin-bottom: 12px;">
+              ${qrResult.error}
+            </p>
+            <p style="color: #888; font-size: 13px;">
+              For best results, install Tailscale on this Mac and your iPhone.
+              They'll create a secure network so you can connect from anywhere.
+            </p>
+            <button class="btn btn-primary" onclick="openTailscaleInstall()" style="margin-top: 12px;">
+              Download Tailscale
+            </button>
+          `;
+        } else if (qrResult.qrDataUrl) {
+          statusDiv.innerHTML = '';
+          qrDiv.style.display = 'block';
+          qrImg.src = qrResult.qrDataUrl;
+          document.getElementById('modal-ip').textContent = qrResult.host || '';
+          document.getElementById('modal-port').textContent = qrResult.port || '9876';
+        }
+      } catch (err) {
+        console.error('Error generating QR:', err);
+        statusDiv.innerHTML = `
+          <p style="color: #f87171;">Error: ${err.message || err}</p>
+        `;
+      }
+    }
+
+    function closePairingModal() {
+      document.getElementById('pairing-modal').classList.add('hidden');
+    }
+
+    // Refresh data periodically
+    setInterval(async () => {
+      await loadClients();
+      await loadSessions();
+      await loadServices();
+    }, 5000);
+
+    init();
+  </script>
+</body>
+</html>
