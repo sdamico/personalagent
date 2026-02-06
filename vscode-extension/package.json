@@ -1,0 +1,86 @@
+{
+  "name": "personal-agent-terminals",
+  "displayName": "Personal Agent - Shared Terminals",
+  "description": "Access terminal sessions from your Personal Agent directly in VS Code",
+  "version": "0.1.0",
+  "publisher": "personal-agent",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "personalAgent.connect",
+        "title": "Personal Agent: Connect to Agent"
+      },
+      {
+        "command": "personalAgent.disconnect",
+        "title": "Personal Agent: Disconnect"
+      },
+      {
+        "command": "personalAgent.listTerminals",
+        "title": "Personal Agent: List Shared Terminals"
+      },
+      {
+        "command": "personalAgent.attachTerminal",
+        "title": "Personal Agent: Attach to Terminal"
+      },
+      {
+        "command": "personalAgent.createTerminal",
+        "title": "Personal Agent: Create Shared Terminal"
+      }
+    ],
+    "configuration": {
+      "title": "Personal Agent",
+      "properties": {
+        "personalAgent.host": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "Personal Agent host address"
+        },
+        "personalAgent.port": {
+          "type": "number",
+          "default": 9876,
+          "description": "Personal Agent WebSocket port"
+        },
+        "personalAgent.authToken": {
+          "type": "string",
+          "default": "",
+          "description": "Authentication token for the Personal Agent"
+        },
+        "personalAgent.autoConnect": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically connect to the agent on startup"
+        },
+        "personalAgent.useTLS": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use TLS (wss://) for WebSocket connections"
+        },
+        "personalAgent.rejectUnauthorized": {
+          "type": "boolean",
+          "default": false,
+          "description": "Reject unauthorized TLS certificates (disable for self-signed certs)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.9.3"
+  }
+}

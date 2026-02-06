@@ -22,6 +22,7 @@ interface AuthenticatedClient {
   sessionSubscriptions: Set<string>;
   ownedSessions: Set<string>;  // Sessions this client created
   serviceSubscriptions: Set<string>;  // Services this client subscribes to
+  isLocal: boolean;  // True if connected from localhost (trusted for full session access)
 }
 
 // Track session ownership by device ID so it persists across reconnects
@@ -115,10 +116,14 @@ export class RemoteServer extends EventEmitter {
         }
       }, 10000);
 
+      // Track whether this is a local connection for session sharing
+      const normalizedIP = ip ? this.normalizeIP(ip) : '';
+      const isLocal = normalizedIP === '127.0.0.1' || normalizedIP === '::1';
+
       ws.on('message', (data) => {
         try {
           const message: RemoteMessage = JSON.parse(data.toString());
-          this.handleMessage(clientId, ws, message, authTimeout);
+          this.handleMessage(clientId, ws, message, authTimeout, isLocal);
         } catch (error) {
           this.sendError(ws, 'Invalid message format');
         }
@@ -143,11 +148,12 @@ export class RemoteServer extends EventEmitter {
     clientId: string,
     ws: WebSocket,
     message: RemoteMessage,
-    authTimeout?: NodeJS.Timeout
+    authTimeout?: NodeJS.Timeout,
+    isLocal?: boolean
   ): void {
     // Handle authentication
     if (message.type === 'auth') {
-      this.handleAuth(clientId, ws, message.payload as AuthPayload, message.requestId, authTimeout);
+      this.handleAuth(clientId, ws, message.payload as AuthPayload, message.requestId, authTimeout, isLocal);
       return;
     }
 
@@ -178,7 +184,8 @@ export class RemoteServer extends EventEmitter {
     ws: WebSocket,
     payload: AuthPayload,
     requestId?: string,
-    authTimeout?: NodeJS.Timeout
+    authTimeout?: NodeJS.Timeout,
+    isLocal?: boolean
   ): void {
     // Constant-time comparison to prevent timing attacks
     const tokenBuffer = Buffer.from(this.authToken);
@@ -214,15 +221,18 @@ export class RemoteServer extends EventEmitter {
       sessionSubscriptions: new Set(ownedSessions),  // Auto-subscribe to owned sessions
       ownedSessions,
       serviceSubscriptions: new Set(),
+      isLocal: isLocal ?? false,
     };
 
     this.clients.set(clientId, client);
     console.log(`Client ${payload.deviceName} authenticated (deviceId: ${deviceId}, restored ${ownedSessions.size} sessions)`);
 
-    // Only send sessions this device owns (for reconnect scenario)
-    const deviceSessions = this.ptyManager.getAllSessions().filter(
-      (s) => sessionOwnership.get(s.id) === deviceId
-    );
+    // Local clients get all sessions; remote clients get only their owned sessions
+    const deviceSessions = client.isLocal
+      ? this.ptyManager.getAllSessions()
+      : this.ptyManager.getAllSessions().filter(
+          (s) => sessionOwnership.get(s.id) === deviceId
+        );
 
     this.send(ws, {
       type: 'auth',
@@ -239,6 +249,8 @@ export class RemoteServer extends EventEmitter {
   }
 
   private canAccessSession(client: AuthenticatedClient, sessionId: string): boolean {
+    // Local clients (e.g. VS Code extension on same machine) can access all sessions
+    if (client.isLocal) return true;
     return client.ownedSessions.has(sessionId) || client.sessionSubscriptions.has(sessionId);
   }
 
@@ -294,13 +306,15 @@ export class RemoteServer extends EventEmitter {
       }
       case 'subscribe': {
         const { sessionId } = payload as { sessionId: string };
-        // Only allow subscribing to sessions this device owns (using global ownership map)
-        if (sessionOwnership.get(sessionId) !== client.deviceId) {
+        // Local clients can subscribe to any session; remote clients must own it
+        if (!client.isLocal && sessionOwnership.get(sessionId) !== client.deviceId) {
           this.sendError(client.ws, `Access denied: You don't own session ${sessionId}`);
           return;
         }
         client.sessionSubscriptions.add(sessionId);
-        client.ownedSessions.add(sessionId);  // Also restore to local set
+        if (sessionOwnership.get(sessionId) === client.deviceId) {
+          client.ownedSessions.add(sessionId);  // Also restore to local set
+        }
         break;
       }
       case 'unsubscribe': {
@@ -309,10 +323,12 @@ export class RemoteServer extends EventEmitter {
         break;
       }
       case 'list': {
-        // Only return sessions this client owns or is subscribed to
-        const accessibleSessions = this.ptyManager.getAllSessions().filter(
-          (session) => client.ownedSessions.has(session.id) || client.sessionSubscriptions.has(session.id)
-        );
+        // Local clients see all sessions; remote clients see only owned/subscribed
+        const accessibleSessions = client.isLocal
+          ? this.ptyManager.getAllSessions()
+          : this.ptyManager.getAllSessions().filter(
+              (session) => client.ownedSessions.has(session.id) || client.sessionSubscriptions.has(session.id)
+            );
         this.send(client.ws, {
           type: 'pty',
           action: 'list',
